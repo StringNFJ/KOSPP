@@ -8,9 +8,9 @@ namespace kospp
 {
     interface IKOSppObject : ICodeParser
     {
-        string Name { get; }   
-        string LexiconEntry { get; }
-        bool IsPublic { get; }
-        string GetKOSCode();
+        string  Name            { get; }   
+        string  LexiconEntry    { get; }
+        bool    IsPublic        { get; }
+        string  GetKOSCode();
     }
 }

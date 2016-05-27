@@ -6,32 +6,87 @@ using System.Threading.Tasks;
 
 namespace kospp
 {
-    class ClassObject : ICodeParser
+    class ClassObject : IKOSppObject, IBlockProcessor
     {
         private enum eParseShate
         {
             Start,
-            Done,
-            FuncVarName,
+            MainLoop,
+            Done,            
             FuncVar,
             GetFuncPrams,
             GetVarInitValue,
             Property,
+            SendWordsEngineToObject,
             GetBlockStart,
             GetBlock,
             Error
         }
-        private eParseShate parseState;
-        private string name;
-        private string ConstructorUserCode;
-        private List<IKOSppObject> KOSObjects;
-        private IKOSppObject currentObject;
-        private string parseError;
-        private bool currentIsPublic;
-        private BlockParser blockParser;
-        private string funcVarName;
-        private bool canGetParameter;
-        public string LexiconDefinition
+
+        #region private vars
+        private                     eParseShate parseState;
+        private string              name;
+        private List<IKOSppObject>  KOSObjects;
+        private IKOSppObject        currentObject;
+        private string              parseError;
+        private bool                currentIsPublic;        
+        private bool                canGetParameter;
+        #endregion
+
+        public ClassObject(string pName)
+        {
+            name = pName;
+            KOSObjects = new List<IKOSppObject>();
+            parseState = eParseShate.Start;
+            parseError = "";
+        }
+
+        #region private code
+        private string      ConstructorDefinition
+        {
+            get
+            {
+                FunctionObject func = KOSObjects.Single(x => x.Name == name) as FunctionObject;
+                String funcCode = func.GetKOSCode();
+                funcCode = funcCode.Replace("function " + name, "function _" + name);
+                if (func.ParamCount == 0)
+                    funcCode = funcCode.Replace("parameter this.", "");
+                else
+                    funcCode = funcCode.Replace("this,", "");   
+                funcCode = funcCode.Insert(funcCode.IndexOf("{\r\n")+3, "//Class lexicon\r\n\t" + LexiconEntry + 
+                    "\t\tset this to " + name + "." +
+                    "\r\n//Do not edit the code above here unless you know what you doing!!!\r\n//User constructor code\r\n"
+                    );
+                funcCode = "//Constructor\r\nglobal " + name + " is _" + name + "@.\r\n\r\n" + funcCode;
+                return funcCode;
+            }
+        }
+        private eParseShate addObject(IKOSppObject obj)
+        {
+            if (KOSObjects.Any(x => x.Name == obj.Name))
+            {
+                parseError = "The object " + obj.Name + " has the same name a another object in this class.";
+                return eParseShate.Error;
+            }
+            else
+            {
+                KOSObjects.Add(obj);
+                currentObject = null;              
+            }
+            return eParseShate.MainLoop;
+        }
+        private bool        validateName(string word)
+        {
+            return true;
+        }
+        #endregion
+
+        #region IKOSppObject
+        public string   Name
+        {
+            get { return name; }
+        }
+        public string   LexiconEntry
         {
             get
             {
@@ -65,103 +120,99 @@ namespace kospp
                 return lex;
             }
         }
-        public string ConstructorDefinition
+        public bool     IsPublic
         {
-            get
-            {
-                FunctionObject func = KOSObjects.Single(x => x.Name == name) as FunctionObject;
-                String funcCode = func.GetKOSCode();
-                funcCode = funcCode.Replace("function " + name, "function _" + name);
-                if (func.ParamCount == 0)
-                    funcCode = funcCode.Replace("parameter this.", "");
-                else
-                    funcCode = funcCode.Replace("this,", "");   
-                funcCode = funcCode.Insert(funcCode.IndexOf("{\r\n")+3, "//Class lexicon\r\n\t" + LexiconDefinition + 
-                    "\t\tset this to " + name + "." +
-                    "\r\n//Do not edit the code above here unless you know what you doing!!!\r\n//User constructor code\r\n"
-                    );
-                funcCode = "//Constructor\r\nglobal " + name + " is _" + name + "@.\r\n\r\n" + funcCode;
-                return funcCode;
-            }
+            get { return true; }
         }
-        public string FunctionDefinitions
-        {
-            get
-            {
-                string func = "//Properties\r\n";
-                foreach(IKOSppObject p in KOSObjects.Where(x=> x.GetType() == typeof(PropertyObject)))
-                    func += p.GetKOSCode();
-                func += "//public functions\r\n";
-                foreach(IKOSppObject f in KOSObjects.Where(x=>x.IsPublic == true && x.Name != name))
-                    func += f.GetKOSCode();
-                func += "//private functions\r\n";
-                foreach(IKOSppObject f in KOSObjects.Where(x=>x.IsPublic == false && x.Name != name))
-                    func += f.GetKOSCode();
-                return func;
-            }
+        public string   GetKOSCode()
+        {            
+            string func = "//Properties\r\n";
+            foreach(IKOSppObject p in KOSObjects.Where(x=> x.GetType() == typeof(PropertyObject)))
+                func += p.GetKOSCode();
+            func += "//public functions\r\n";
+            foreach(IKOSppObject f in KOSObjects.Where(x=>x.IsPublic == true && x.Name != name && x.GetType() == typeof(FunctionObject)))
+                func += f.GetKOSCode();
+            func += "//private functions\r\n";
+            foreach(IKOSppObject f in KOSObjects.Where(x=>x.IsPublic == false && x.Name != name && x.GetType() == typeof(FunctionObject)))
+                func += f.GetKOSCode();
+            return ConstructorDefinition + func;
         }
-        public ClassObject(string pName)
-        {
-            name = pName;
-            KOSObjects = new List<IKOSppObject>();
-            parseState = eParseShate.Start;
-            parseError = "";
-        }
-        public void AddKosObject(IKOSppObject pKosObject)
-        {
-            KOSObjects.Add(pKosObject);            
-        }
-        public String getKOSCode()
-        {
-            return "";
-        }
-        public bool ParseWord(string word)
+        #region ICodeParser
+        public bool     Parse(WordEngine oWordEngine)
         {
             switch(parseState)
             {
                 case eParseShate.Start:
-                    switch(word)
+                    if(!oWordEngine.RegisterBlockTest(this))
+                    {
+                        parseState = eParseShate.Error;
+                        return false;
+                    }
+                    parseState = eParseShate.MainLoop;
+                    break;
+                case eParseShate.MainLoop:                    
+                    switch(oWordEngine.CurrentNonWhitespace)
                     {
                         case "private":
                             currentIsPublic = false;
-                            parseState = eParseShate.FuncVarName;
+                            parseState = eParseShate.FuncVar;
                             break;
                         case "public":
                             currentIsPublic = true;
-                            parseState = eParseShate.FuncVarName;
+                            parseState = eParseShate.FuncVar;
                             break;
                         case "property":
                             currentIsPublic = true;
                             parseState = eParseShate.Property;
                             break;
-                        case "}":
+                        case WordEngine.BlockEndChar:
                             parseState = eParseShate.Done;
                             return false;
                         default:
+                            if (oWordEngine.HasError)
+                                parseError = oWordEngine.Error;
+                            else
+                                parseError = "Expecting private public or property, found " + oWordEngine.Current;
                             parseState = eParseShate.Error;
-                            parseError = "Expecting private public or property, found " + word;
                             return false;
                     }
                     break;
-                case eParseShate.Property:
-                    if (validateName(word))
+                case eParseShate.SendWordsEngineToObject:
+                    if(currentObject == null)
                     {
-                        currentObject = new PropertyObject(word, currentIsPublic);
-                        parseState = eParseShate.GetBlockStart;
+                        parseError = "Compiler error! trying to send the word " + oWordEngine.Current + " to an null KOSObject.";
+                        return false;
+                    }
+                    if(!currentObject.Parse(oWordEngine))
+                    {
+                        if (currentObject.HasParseError || !currentObject.IsParseComplete)
+                        {
+                            if (currentObject.HasParseError)
+                                parseError = currentObject.ParseError;
+                            else
+                                parseError = "Compiler error! Parser " + currentObject.Name + " returned false, but is not complete and has no errors.";
+                            return false;
+                        }
+                        else
+                            parseState = addObject(currentObject);
+                    }
+                    break;
+                case eParseShate.Property:
+                    if (validateName(oWordEngine.NextNonWhitespace))
+                    {
+                        currentObject = new PropertyObject(oWordEngine.Current, currentIsPublic);
+                        parseState = eParseShate.SendWordsEngineToObject;
                     }
                     else
                     {
-                        parseError =  "The name " + word + " is not a valid name for a property.";
+                        parseError =  "The name " + oWordEngine.Current + " is not a valid name for a property.";
                         parseState = eParseShate.Error;
                         return false;
                     }
                     break;
-                case eParseShate.FuncVarName:
-                    funcVarName = word;
-                    parseState = eParseShate.FuncVar;
-                    break;
                 case eParseShate.FuncVar:
-                    if(word.Equals("("))  //function
+                    string funcVarName = oWordEngine.CurrentNonWhitespace;
+                    if(oWordEngine.NextNonWhitespace.Equals("("))  //function
                     {
                         if (validateName(funcVarName))
                         {
@@ -171,23 +222,20 @@ namespace kospp
                         }
                         else
                         {
-                            parseError =  "The name " + word + " is not a valid name for a function.";
+                            parseError =  "The name " + oWordEngine.Current + " is not a valid name for a function.";
                             parseState = eParseShate.Error;
                             return false;
                         }
                     }
-                    else if(word.Equals("=") || word.Equals("."))
+                    else if(oWordEngine.Current.Equals("=") || oWordEngine.Current.Equals("."))
                     {
-                        if(validateName(word))
+                        if(validateName(oWordEngine.Current))
                         {
                             currentObject = new VariableObject(funcVarName,currentIsPublic);
-                            if (word.Equals("="))
-                                parseState = eParseShate.GetVarInitValue;
+                            if (oWordEngine.Current.Equals("="))
+                                parseState = eParseShate.SendWordsEngineToObject;
                             else
-                            {
-                                currentObject.ParseWord("\"\"");
-                                parseState = addObject(currentObject);                                
-                            }
+                                parseState = addObject(currentObject);
                         }
                         else
                         {
@@ -199,25 +247,14 @@ namespace kospp
                     else
                     {
                         parseState = eParseShate.Error;
-                        parseError = "Expecting ( = or ., found " + word;
+                        parseError = "Expecting ( = or ., found " + oWordEngine.Current;
                         return false;
                     }
-                    break;
-                case eParseShate.GetVarInitValue:
-                    if (word.Equals("."))
-                        parseState = addObject(currentObject);
-                    else if (!currentObject.ParseWord(word))
-                    {
-                        parseError = currentObject.ParseError;
-                        parseState = eParseShate.Error;
-                        return false;
-                    }
-                                                            
                     break;
                 case eParseShate.GetFuncPrams:
-                    if (word.Equals(")"))
-                        parseState = eParseShate.GetBlockStart;
-                    else if(word.Equals(","))
+                    if (oWordEngine.CurrentNonWhitespace.Equals(")"))
+                        parseState = eParseShate.SendWordsEngineToObject;
+                    else if(oWordEngine.Current.Equals(","))
                     {
                         if (canGetParameter)
                         {
@@ -230,14 +267,14 @@ namespace kospp
                     }
                     else if(canGetParameter)
                     {
-                        if(validateName(word))
+                        if(validateName(oWordEngine.Current))
                         {
                             FunctionObject func = currentObject as FunctionObject;
                             if(func != null)
                             {
-                                if (!func.AddParameter(word))
+                                if (!func.AddParameter(oWordEngine.Current))
                                 {
-                                    parseError = "The function " + func.Name + " has two parameters withe the same name (" + word + ").";
+                                    parseError = "The function " + func.Name + " has two parameters withe the same name (" + oWordEngine.Current + ").";
                                     parseState = eParseShate.Error;
                                     return false;
                                 }
@@ -253,77 +290,32 @@ namespace kospp
                         }
                         else
                         {
-                            parseError =  "The name " + word + " is not a valid name for a function parameter.";
+                            parseError =  "The name " + oWordEngine.Current + " is not a valid name for a function parameter.";
                             parseState = eParseShate.Error;
                             return false;
                         }
                     }
                     else
                     {
-                        parseError =  "Expecting to find a , or ) but found " + word + " insted";
+                        parseError =  "Expecting to find a , or ) but found " + oWordEngine.Current + " insted";
                         parseState = eParseShate.Error;
                         return false;
-                    }
-                    break;
-                case eParseShate.GetBlockStart:
-                    blockParser = new BlockParser(currentObject,"ClassObject:"+currentObject.Name);
-                    if (blockParser.BlockStart(word))
-                        parseState = eParseShate.GetBlock;
-                    else
-                    {
-                        parseError =  blockParser.Error;
-                        parseState = eParseShate.Error;
-                        return false;
-                    }
-                    break;
-                case eParseShate.GetBlock:
-                    if(!blockParser.GetBlock(word))
-                    {
-                        if (blockParser.HasParseError)
-                        {
-                            parseError = blockParser.Error;
-                            parseState = eParseShate.Error; 
-                            return false;
-                        }
-                        else
-                        {
-                            parseState = addObject(currentObject);                           
-                            blockParser = null;
-                            funcVarName = null;
-                            parseState = eParseShate.Start;
-                        }
                     }
                     break;
                 case eParseShate.Error:
+                    if (!HasParseError)
+                        parseError = "Compiler error! The parser " + name + " was put in Error state, but had no error.";
                     return false;
                 case eParseShate.Done:
                     return false;
                 default:                    
-                    parseError = "Compiner error! Unhandled state in ClassObject: " + parseState.ToString(); 
+                    parseError = "Compiner error! Unhandled state in ClassObject: " + name + "" + parseState.ToString(); 
                     parseState = eParseShate.Error;
                     return false;
             }
             return true;
         }
-        private eParseShate addObject(IKOSppObject obj)
-        {
-            if (KOSObjects.Any(x => x.Name == obj.Name))
-            {
-                parseError = "The object " + obj.Name + " has the same name a another object in this class.";
-                return eParseShate.Error;
-            }
-            else
-            {
-                KOSObjects.Add(obj);
-                currentObject = null;              
-            }
-            return eParseShate.Start;
-        }
-        private bool validateName(string word)
-        {
-            return true;
-        }
-        public bool IsParseComplete
+        public bool     IsParseComplete
         {
             get
             {
@@ -333,11 +325,11 @@ namespace kospp
                     return false;
             }
         }
-        public string ParseError
+        public string   ParseError
         {
             get { return parseError; }
         }
-        public bool HasParseError
+        public bool     HasParseError
         {
             get 
             {
@@ -347,5 +339,18 @@ namespace kospp
                     return true;
             }
         }
+        #endregion
+        #endregion
+
+        #region IBlockObject
+        //Name implemented in IKOSObject
+        public string BlockEnd()
+        {
+            if (parseState != eParseShate.MainLoop)
+                return "A block in " + name + " ended outside of the main loop.";
+            else
+                return null; 
+        }
+        #endregion
     }
 }

@@ -34,8 +34,9 @@
   <PropertyGroup />
   <PropertyGroup />
   <PropertyGroup />
+  <PropertyGroup />
   <PropertyGroup>
-    <ApplicationManifest>Embed manifest with default settings</ApplicationManifest>
+    <NoWin32Manifest>true</NoWin32Manifest>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -47,7 +48,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BlockParser.cs" />
     <Compile Include="ClassObject.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="FunctionObject.cs" />
@@ -58,6 +58,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PropertyObject.cs" />
     <Compile Include="VariableObject.cs" />
+    <Compile Include="WordEngine.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

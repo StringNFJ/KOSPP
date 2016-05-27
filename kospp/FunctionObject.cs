@@ -6,24 +6,27 @@ using System.Threading.Tasks;
 
 namespace kospp
 {
-    class FunctionObject : IKOSppObject
+    class FunctionObject : IKOSppObject, IBlockProcessor
     {
          private enum eParseShate
         {
             Start,
+            MainLoop,
             Done,
             Error
             
         }
-        private eParseShate parseState;
-        private string parseError;
-        private BlockParser blockParser;
-        private bool isPublic;
-        private string name;
-        private string internalName;
-        private List<string> parameters;
-        private string code;
-        private bool ignoreString;
+
+        #region private vars
+        private eParseShate     parseState;
+        private string          parseError;
+        private bool            isPublic;
+        private string          name;
+        private string          internalName;
+        private List<string>    parameters;
+        private string          code;
+        #endregion
+
         public FunctionObject(string pName,bool pIsPublic,string pInrernalName = null)
         {
             parameters = new List<string>();
@@ -33,11 +36,10 @@ namespace kospp
             else
                 internalName = pInrernalName;
             isPublic = pIsPublic;
-            parseState = eParseShate.Done; //function will accept empty blocks as well.
-            code = "\t\t";
-            ignoreString = false;
-
+            parseState = eParseShate.MainLoop;
+            code = "";
         }
+
         public bool AddParameter(string pName)
         {
             if (parameters.Contains(pName))
@@ -45,45 +47,82 @@ namespace kospp
             parameters.Add(pName);
             return true;
         }
-        public string Name
-        {
-            get { return name; }
-        }
-        public bool IsPublic
-        {
-            get { return isPublic; }
-        }
-        public string LexiconEntry
-        {
-            get { return "\"" + name + "\"," + internalName + "@" + ":bind(class)"; }
-        }
-        public int ParamCount
+        public int  ParamCount
         {
             get
             {
                 return parameters.Count;
             }
         }
-        public string GetKOSCode()
+
+        #region IKOSObject
+        public string   Name
         {
-            String KOSCode = "\tfunction " + internalName;
-            KOSCode += "\r\n\t{\r\n\t\tparameter this";
+            get { return name; }
+        }
+        public bool     IsPublic
+        {
+            get { return isPublic; }
+        }
+        public string   LexiconEntry
+        {
+            get { return "\"" + name + "\"," + internalName + "@" + ":bind(class)"; }
+        }        
+        public string   GetKOSCode()
+        {
+            String KOSCode = "function " + internalName;
+            KOSCode += "\r\n{\r\nparameter this";
             foreach (string param in parameters)
                 KOSCode += ", " + param;
-            KOSCode += ".\r\n" + code + "\r\n\t}\r\n";
+            KOSCode += ".\r\n" + code + "}\r\n";
             return KOSCode;
         }
-        public bool ParseWord(string word)
+        #region ICodeParser
+        public bool     Parse(WordEngine oWordEngine)
         {
-            if (word.Equals("."))
+            switch(parseState)
             {
-                code = code.TrimEnd(' ') + word + "\r\n\t\t";
+                case eParseShate.MainLoop:
+                    String word = oWordEngine.CurrentNonWhitespace;
+                    if (oWordEngine.IsBlockStart)
+                        oWordEngine.RegisterBlockTest(this);
+                    else
+                    {
+                        parseError = "Function " + name + " expecting a block.";
+                        parseState = eParseShate.Error;
+                        return false;
+                    }
+                    string StartOfFunctionMarker = oWordEngine.GetLineWithPositionMarker;
+                    do
+                    {                        
+                        while (oWordEngine.NextWord != null && parseState == eParseShate.MainLoop)
+                        {
+                            if (oWordEngine.Current.Equals("."))
+                                code = code.TrimEnd(' ') + oWordEngine.Current + "\r\n";
+                            else
+                                code += oWordEngine.Current;
+                        }
+                    } while (parseState == eParseShate.MainLoop && oWordEngine.NextLine());
+                    if(oWordEngine.Current == null)
+                    {
+                        parseState = eParseShate.Error;
+                        parseError = "Function " + name + " reached the end of file before finding the clock end.\r\n" + StartOfFunctionMarker;
+                    }
+                    return false;
+                case eParseShate.Done:
+                    return false;
+                case eParseShate.Error:
+                    if (!HasParseError)
+                        parseError = "Compiler error! The parser " + name + " was put in Error state, but had no error.";
+                    return false;
+               default:                    
+                    parseError = "Compiner error! Unhandled state in FunctionObject " + name + " : "  + parseState.ToString(); 
+                    parseState = eParseShate.Error;
+                    return false;
             }
-            else
-                code += word + " ";
             return true;
         }
-        public bool IsParseComplete
+        public bool     IsParseComplete
         {
             get
             {
@@ -93,14 +132,11 @@ namespace kospp
                     return false;
             }
         }
-
-        public string ParseError
+        public string   ParseError
         {
             get { return parseError; }
         }   
-
-
-        public bool HasParseError
+        public bool     HasParseError
         {
             get 
             {
@@ -110,5 +146,20 @@ namespace kospp
                     return true;
             }
         }
+        #endregion
+        #endregion
+
+        #region IBlockParser
+        public string BlockEnd()
+        {
+            if(parseState == eParseShate.MainLoop)
+            {
+                parseState = eParseShate.Done;
+                return null;
+            }
+            else
+                return "A block in function " + name + " ended outside of the main loop.";
+        }
+        #endregion
     }
 }

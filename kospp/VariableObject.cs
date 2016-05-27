@@ -17,7 +17,6 @@ namespace kospp
         }
         private eParseShate parseState;
         private string parseError;
-        private BlockParser blockParser;
         private bool isPublic;
         private string name;
         private string initValue;
@@ -26,6 +25,7 @@ namespace kospp
             isPublic = pIsPublic;
             name = pName;
             initValue = "";
+            parseState = eParseShate.Start;
         }
         public string Name
         {
@@ -42,18 +42,26 @@ namespace kospp
         }
         public string LexiconEntry
         {
-            get { return "\"" + name + "\"," + initValue;}
+            get { return "\"" + name + "\"," + (initValue.Trim().Length == 0 ? "\"\"":initValue.Trim());}
         }
 
         public string GetKOSCode()
         {
             return "";
         }
-         public bool ParseWord(string word)
+         public bool Parse(WordEngine oWordEngine)
         {
              //TODO: in the futuer I might want to check that this is a leagal init value for a parameter.
-            initValue += word;
-            parseState = eParseShate.Done; // one word in the block is theoreticly enough to be done.
+            while(oWordEngine.Current != null)
+            {
+                initValue += oWordEngine.Current;
+                if(oWordEngine.NextNonWhitespace.Equals("."))
+                {
+                    parseState = eParseShate.Done;
+                    return false;
+                }
+            }
+            parseError = "Expecting . found end of file.";
             return true;
         }
         public bool IsParseComplete

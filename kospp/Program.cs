@@ -10,10 +10,10 @@ namespace kospp
     {
         static void Main(string[] args)
         {
-            string FileName = "Class1";   
-            Compiler a = new Compiler(new StreamReader(@"C:\Games\SteamApps\common\Kerbal Space Program\Ships\Script\" + FileName + ".kpp"), new StreamWriter(@"C:\Games\SteamApps\common\Kerbal Space Program\Ships\Script\" + FileName + ".ks"));
+            string FileName = "Class1.kpp";
+            Compiler a = new Compiler(@"C:\Games\SteamApps\common\Kerbal Space Program\Ships\Script\", FileName);
             Console.ReadKey();
-           
+        
         }
     }
 }

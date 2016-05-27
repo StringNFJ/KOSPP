@@ -8,235 +8,96 @@ namespace kospp
 {
     class Compiler
     {
+        #region private vars
+        private char[]              strimgSep = new char[] {'"'};
+        private char[]              allSpecChars = new char[] { '.', '{' ,'}','(',')','=',',','"',' ', '\t'};
+        private List<string>        errors;
+        private List<string>        warinings;
+        private List<IKOSppObject>  KOSObjects;
+        private IKOSppObject        currentObject;
+        private WordEngine          oWordEngine;
+        #endregion
 
-        public static int currentLineNumber;
-     //   private char[] whitespaces = new char[] { ' ', '\t' };
-     //   private char[] specialChars = new char[] { '.', '{' ,'}','(',')','=',',','"'};
-        private char[] allSpecChars = new char[] { '.', '{' ,'}','(',')','=',',','"',' ', '\t'};
-        private List<string> errors;
-        private List<string> warinings;
-        private ClassObject classObj;
-        private BlockParser blockParser;
-        private Stack<eState> StateStack;
-        private string stringData;
-        private enum eState
+        public Compiler(String ScriptDir, String KOSppFileName)
         {
-            Start,
-            ClassName,
-            StringStart,
-            Skip,
-            StringComplete,
-            GetBlockStart,
-            GetBlock,
-            Commit,
-            Done,
-            Error
-        }
-        private eState State;   
-        public Compiler(StreamReader headerFile,StreamWriter KOSFile)
-        {
-            StateStack = new Stack<eState>();
+            StreamReader KOSPPFile = new StreamReader(ScriptDir + "\\" + KOSppFileName);
+            oWordEngine = new WordEngine(KOSPPFile, allSpecChars, strimgSep);
             errors = new List<string>();
             warinings = new List<string>();
-            int lineCounter = 1;
-            currentLineNumber = lineCounter;
-            State = eState.Start;
-            while(!headerFile.EndOfStream)
+            Console.WriteLine("Compiling....");
+            KOSObjects = new List<IKOSppObject>();
+            if(!processCode())
             {
-                currentLineNumber = lineCounter;
-                Console.WriteLine("*******************************************************");
-                Console.WriteLine("Line number: " + lineCounter);
-                if (!processLine(headerFile.ReadLine(), lineCounter++))
-                    break;
+                 foreach (string e in errors)
+                     Console.WriteLine(e);
             }
-            Console.WriteLine("*******************************************************");
-            foreach (string e in errors)
-                Console.WriteLine(e);
-            headerFile.Close();
-            if (errors.Count == 0)
+            else
             {
-                KOSFile.Write(classObj.ConstructorDefinition);
-                KOSFile.Write(classObj.FunctionDefinitions);
+                foreach (IKOSppObject KOSObj in KOSObjects)
+                {
+                    string filename = ScriptDir + "\\" + KOSObj.Name + ".ks";
+                    Console.WriteLine("Writing class " + KOSObj.Name + " to " + filename);                    
+                    StreamWriter KOSFile = new StreamWriter(filename);
+                    KOSFile.Write(KOSObj.GetKOSCode());
+                    KOSFile.Close();
+                    Console.WriteLine("Write Complete.");
+                }
             }
-            KOSFile.Close();
-            
+            KOSPPFile.Close();
+            Console.WriteLine("Done.");
         }
+        
         private bool validateName(string word)
         {
             //TODO:Validate the word.
             return true;
-        }
-        private string[] specialSplit(string str, char[] chrToSpit)
+        }       
+        private bool processCode()
         {
-            List<string> result = new List<string>();
-            int index = str.IndexOfAny(chrToSpit);
-            int pos =0;
-            while(index > -1)
+            currentObject = null;
+            while (oWordEngine.NextLine())
             {
-                if(index - pos > 0)
-                    result.Add(str.Substring(pos, index - pos));
-                result.Add(str[index].ToString());
-                pos = index+1;
-                if (pos >= str.Length)
-                    break;
-                index = str.IndexOfAny(chrToSpit,pos);
-            }
-            result.Add(str.Substring(pos));
-            return result.ToArray<string>();
-        }
-        //private Queue<string> getWords(string line)
-        //{
-        //    Queue<string> wordQueue = new Queue<string>();
-        //    string[] lineWords;
-        //    lineWords = specialSplit(line, whitespaces);
-
-
-        //     foreach (string word in lineWords)
-        //     {
-        //         string currentWord = word;
-        //         int index = currentWord.IndexOfAny(specialChars);
-        //         while (currentWord.Length > 0)
-        //         {
-        //             if (index > 0)
-        //             {
-        //                 wordQueue.Enqueue(currentWord.Substring(0, index));
-        //                 currentWord = currentWord.Substring(index);
-        //             }
-        //             else if (index == 0)
-        //             {
-        //                 wordQueue.Enqueue(currentWord.Substring(0, 1));
-        //                 currentWord = currentWord.Substring(1);
-        //             }
-        //             else
-        //             {
-        //                 wordQueue.Enqueue(currentWord);
-        //                 currentWord = "";
-        //             }
-        //             index = currentWord.IndexOfAny(specialChars);
-        //         };    
-        //     }
-        //     return wordQueue;
-        //}
-        private bool processLine(string line,int lineNumber)
-        {
-            //Queue<string> lineWords = getWords(line);
-            Queue<string> lineWords = new Queue<string>(specialSplit(line, allSpecChars));
-            if (lineWords.Count == 0)
-            {
-                if (State == eState.StringStart)
+                while (oWordEngine.NextWord != null)
                 {
-                    errors.Add(lineNumber + " :: Expecting \" before the end of line.");
-                    State = eState.Error;
-                    return false;
-                }
-                else
-                    return true;
-            }
-
-            while (lineWords.Count > 0)
-            {
-                String word;
-                if(State == eState.StringComplete)
-                {
-                    word = stringData;
-                    State = StateStack.Pop();
-                }
-                else
-                    word = lineWords.Dequeue();
-                if (State != eState.StringStart)
-                {
-                    if (word.Equals("\""))
+                    switch (oWordEngine.Current)
                     {
-                        StateStack.Push(State);
-                        stringData = "";
-                        State = eState.StringStart;
-                    }
-                    else
-                    {
-                        if(word.Trim().Length == 0)
-                        {
-                            StateStack.Push(State);
-                            State = eState.Skip;
-                        }
-                    }
-                }
-                switch (State)
-                {
-                    case eState.Skip:
-                        State = StateStack.Pop();
-                        break;
-                    case eState.StringStart:
-                        stringData += word;
-                        if (word.Equals("\"") && stringData.Length > 1)
-                        {
-                            State = eState.StringComplete;
-                        }
-                        break;
-                    case eState.Start:
-                        if (word.Equals("class"))
-                        {                            
-                            State = eState.ClassName;
-                        }
-                        else
-                        {
-                            errors.Add(lineNumber + " :: Expecting class definition.");
-                            State = eState.Error;
-                            return false;
-                        }
-                        break;
-                    case eState.ClassName:
-                        if (validateName(word))
-                        {
-                            classObj = new ClassObject(word);
-                            State = eState.GetBlockStart;
-                        }
-                        else
-                        {
-                            errors.Add(lineNumber + " :: The name " + word + " is not a valid name for a class.");
-                            State = eState.Error;
-                            return false;
-                        }
-                        break;   
-                    case eState.GetBlockStart:
-                        blockParser = new BlockParser(classObj,"Compiler");
-                        if (blockParser.BlockStart(word))
-                            State = eState.GetBlock;
-                        else
-                        {
-                            errors.Add(lineNumber + " :: " + blockParser.Error);
-                            State = eState.Error;
-                            return false;
-                        }
-                        break;
-                     case eState.GetBlock:
-                        if(!blockParser.GetBlock(word))
-                        {
-                            if (blockParser.HasParseError)
-                            {
-                                errors.Add(lineNumber + " :: " + blockParser.Error);
-                                State = eState.Error;
-                                return false;
-                            }
+                        case "class":
+                            if (validateName(oWordEngine.NextNonWhitespace))
+                                currentObject = new ClassObject(oWordEngine.Current);
                             else
                             {
-                                State = eState.Commit;
+                                errors.Add(oWordEngine.FormatedPosition + "The name " + oWordEngine.Current + " is not a valid name for a class.\r\n" + oWordEngine.GetLineWithPositionMarker);                                
+                                return false;
                             }
-                        }
-                        break;
-                    case eState.Commit:
-                        blockParser = null;
-                        State = eState.Done;
-                        break;
-                    case eState.Done:
-                         return false;
+                            break;
+                        default:
+                            if(currentObject == null)
+                            {
+                                errors.Add(oWordEngine.FormatedPosition + "Expecting class definition, found " + oWordEngine.Current + "." + oWordEngine.GetLineWithPositionMarker);
+                                return false;
+                            }
+                            if(!currentObject.Parse(oWordEngine))
+                            {
+                                if (currentObject.HasParseError || !currentObject.IsParseComplete)
+                                {
+                                    if (currentObject.HasParseError)
+                                        errors.Add(oWordEngine.FormatedPosition + currentObject.ParseError + "\r\n" + oWordEngine.GetLineWithPositionMarker);
+                                    else
+                                        errors.Add(oWordEngine.FormatedPosition + "Compiler error! ClassObject parser returned false, but is not complete." + oWordEngine.GetLineWithPositionMarker);
+                                    return false;
+                                }
+                                else
+                                    KOSObjects.Add(currentObject);
+                            }
+                            break;
+                    }
                 }
             }
-            if(State == eState.StringComplete)
+            if(oWordEngine.HasError)
             {
-                errors.Add(lineNumber + " :: \" cant be the last character on a line.");
-                State = eState.Error;
+                errors.Add(oWordEngine.FormatedPosition + oWordEngine.Error + "\r\n" + oWordEngine.GetLineWithPositionMarker);
                 return false;
-            }
+            }            
             return true;
         }
     }
