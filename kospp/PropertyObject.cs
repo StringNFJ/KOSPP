@@ -15,7 +15,6 @@ namespace kospp
             SendWordsEngineToObject,
             Done,
             Error
-            
         }
 
         #region private vars
@@ -75,6 +74,15 @@ namespace kospp
             if(setFunction != null)
                 KOSCode+= setFunction.GetKOSCode();
             return KOSCode;
+        }
+        public string   CallString(bool pGet = true)
+        {
+            string ret = "this[\"" + name +  "\"]";
+            if (pGet)
+                return ret + "[\"get\"]()";
+            else
+                return ret + "[\"set\"]({0})";
+
         }
 
         #region ICodeParser

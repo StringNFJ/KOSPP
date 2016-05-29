@@ -14,7 +14,6 @@ namespace kospp
             MainLoop,
             Done,
             Error
-            
         }
 
         #region private vars
@@ -77,6 +76,13 @@ namespace kospp
             KOSCode += ".\r\n" + code + "}\r\n";
             return KOSCode;
         }
+        public string   CallString(bool pGet = true)
+        {
+            if (pGet)
+                return "this" + (!isPublic ? "[\"_\"]" : "") + "[\"" + name +  "\"]({0})";
+            else
+                return null;
+        }
         #region ICodeParser
         public bool     Parse(WordEngine oWordEngine)
         {
@@ -120,7 +126,6 @@ namespace kospp
                     parseState = eParseShate.Error;
                     return false;
             }
-            return true;
         }
         public bool     IsParseComplete
         {

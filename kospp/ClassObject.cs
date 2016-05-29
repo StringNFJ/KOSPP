@@ -15,11 +15,8 @@ namespace kospp
             Done,            
             FuncVar,
             GetFuncPrams,
-            GetVarInitValue,
             Property,
             SendWordsEngineToObject,
-            GetBlockStart,
-            GetBlock,
             Error
         }
 
@@ -55,7 +52,7 @@ namespace kospp
                     funcCode = funcCode.Replace("this,", "");   
                 funcCode = funcCode.Insert(funcCode.IndexOf("{\r\n")+3, "//Class lexicon\r\n\t" + LexiconEntry + 
                     "\t\tset this to " + name + "." +
-                    "\r\n//Do not edit the code above here unless you know what you doing!!!\r\n//User constructor code\r\n"
+                    "\r\n//Do not edit the code above here unless you know what you doing!!!\r\n//User constructor code@!$\r\n"
                     );
                 funcCode = "//Constructor\r\nglobal " + name + " is _" + name + "@.\r\n\r\n" + funcCode;
                 return funcCode;
@@ -126,6 +123,7 @@ namespace kospp
         }
         public string   GetKOSCode()
         {            
+            
             string func = "//Properties\r\n";
             foreach(IKOSppObject p in KOSObjects.Where(x=> x.GetType() == typeof(PropertyObject)))
                 func += p.GetKOSCode();
@@ -135,7 +133,15 @@ namespace kospp
             func += "//private functions\r\n";
             foreach(IKOSppObject f in KOSObjects.Where(x=>x.IsPublic == false && x.Name != name && x.GetType() == typeof(FunctionObject)))
                 func += f.GetKOSCode();
-            return ConstructorDefinition + func;
+            Phase2Compiler phase2 = new Phase2Compiler(ConstructorDefinition + func, KOSObjects);
+            return phase2.parse();
+        }
+        public string   CallString(bool pGet = false)
+        {
+            if (pGet)
+                return "run " + name + ".";
+            else
+                return null;
         }
         #region ICodeParser
         public bool     Parse(WordEngine oWordEngine)
@@ -352,5 +358,6 @@ namespace kospp
                 return null; 
         }
         #endregion
+
     }
 }

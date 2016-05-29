@@ -13,13 +13,16 @@ namespace kospp
             Start,
             Done,
             Error,
-            
         }
+
+        #region private vars
         private eParseShate parseState;
-        private string parseError;
-        private bool isPublic;
-        private string name;
-        private string initValue;
+        private string      parseError;
+        private bool        isPublic;
+        private string      name;
+        private string      initValue;
+        #endregion
+
         public VariableObject(String pName, bool pIsPublic)
         {
             isPublic = pIsPublic;
@@ -27,31 +30,32 @@ namespace kospp
             initValue = "";
             parseState = eParseShate.Start;
         }
-        public string Name
+
+        #region IKOSObject
+        public string   Name
         {
             get { return name; }
         }
-        public bool IsPublic
+        public bool     IsPublic
         {
             get { return isPublic; }
         }
-        public string InitValue
-        {
-            get { return initValue; }
-            set { initValue = value; }
-        }
-        public string LexiconEntry
+        public string   LexiconEntry
         {
             get { return "\"" + name + "\"," + (initValue.Trim().Length == 0 ? "\"\"":initValue.Trim());}
         }
-
-        public string GetKOSCode()
+        public string   GetKOSCode()
         {
             return "";
         }
-         public bool Parse(WordEngine oWordEngine)
+        public string   CallString(bool pGet = true)
         {
-             //TODO: in the futuer I might want to check that this is a leagal init value for a parameter.
+            return "this" + (!isPublic ? "[\"_\"]" : "") + "[\"" + name +  "\"]";
+        }
+        #region ICodeParser
+        public bool Parse(WordEngine oWordEngine)
+        {
+                //TODO: in the futuer I might want to check that this is a leagal init value for a parameter.
             while(oWordEngine.Current != null)
             {
                 initValue += oWordEngine.Current;
@@ -74,13 +78,10 @@ namespace kospp
                     return false;
             }
         }
-         
         public string ParseError  
         {
             get { return parseError; }
         }
-
-
         public bool HasParseError
         {
             get 
@@ -91,5 +92,7 @@ namespace kospp
                     return true;
             }
         }
+        #endregion
+        #endregion
     }
 }

@@ -11,6 +11,7 @@ namespace kospp
         string  Name            { get; }   
         string  LexiconEntry    { get; }
         bool    IsPublic        { get; }
+        string  CallString(bool pGet = true);
         string  GetKOSCode();
     }
 }

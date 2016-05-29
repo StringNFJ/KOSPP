@@ -59,7 +59,8 @@ namespace kospp
             {
                 while (oWordEngine.NextWord != null)
                 {
-                    switch (oWordEngine.Current)
+                    #region Main Processor
+                    switch (oWordEngine.Current.ToLower())
                     {
                         case "class":
                             if (validateName(oWordEngine.NextNonWhitespace))
@@ -91,6 +92,7 @@ namespace kospp
                             }
                             break;
                     }
+                    #endregion
                 }
             }
             if(oWordEngine.HasError)
