@@ -45,16 +45,17 @@ namespace kospp
             {
                 FunctionObject func = KOSObjects.Single(x => x.Name == name) as FunctionObject;
                 String funcCode = func.GetKOSCode();
-                funcCode = funcCode.Replace("function " + name, "function _" + name);
+                funcCode = funcCode.Insert(funcCode.LastIndexOf('}'),"return this.\r\n");
+                funcCode = funcCode.Replace("function " + name, "function _class");
                 if (func.ParamCount == 0)
                     funcCode = funcCode.Replace("parameter this.", "");
                 else
                     funcCode = funcCode.Replace("this,", "");   
                 funcCode = funcCode.Insert(funcCode.IndexOf("{\r\n")+3, "//Class lexicon\r\n\t" + LexiconEntry + 
-                    "\t\tset this to " + name + "." +
+                    "\t\tset this to class." +
                     "\r\n//Do not edit the code above here unless you know what you doing!!!\r\n//User constructor code@!$\r\n"
                     );
-                funcCode = "//Constructor\r\nglobal " + name + " is _" + name + "@.\r\n\r\n" + funcCode;
+                funcCode = "//Constructor\r\nglobal " + name + " is _class@.\r\n\r\n" + funcCode;
                 return funcCode;
             }
         }
@@ -87,33 +88,33 @@ namespace kospp
         {
             get
             {
-                String lex = "set " + name + " to lexicon(\r\n";
+                String lex = "set class to lexicon().\r\n";
                 bool first = true;
                 foreach(IKOSppObject publicObject in KOSObjects.Where(x=>x.IsPublic == true && x.Name != name))
                 {
                     if (first)
                     {
-                        lex += "\t" + publicObject.LexiconEntry.Replace("\t","\t\t");
+                        lex += publicObject.LexiconEntry + ".\r\n";
                         first = false;
                     }
                     else
-                        lex += ",\r\n\t" + publicObject.LexiconEntry.Replace("\t","\t\t");
+                        lex +=  publicObject.LexiconEntry + ".\r\n";
                     
                 }
-                lex += ",\r\n\t\"_\",lexicon(\r\n";
+                lex += "class[\"_\"] to lexicon(\r\n";
                 first = true;
                 foreach(IKOSppObject publicObject in KOSObjects.Where(x=>x.IsPublic == false && x.Name != name))
                 {
                     if (first)
                     {
-                        lex += "\t\t" + publicObject.LexiconEntry;
+                        lex +=  publicObject.LexiconEntry;
                         first = false;
                     }
                     else
-                        lex += ",\r\n\t\t" + publicObject.LexiconEntry;
+                        lex += ",\r\n" + publicObject.LexiconEntry;
                     
                 }
-                lex += "\r\n\t\t)\r\n\t)\r\n";
+                lex += "\r\n).\r\n";
                 return lex;
             }
         }

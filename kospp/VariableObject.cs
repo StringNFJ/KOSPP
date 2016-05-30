@@ -42,7 +42,13 @@ namespace kospp
         }
         public string   LexiconEntry
         {
-            get { return "\"" + name + "\"," + (initValue.Trim().Length == 0 ? "\"\"":initValue.Trim());}
+            get
+            {
+                if (isPublic)
+                    return "set class[\"" + name + "\"] to " + (initValue.Trim().Length == 0 ? "\"\"" : initValue.Trim());
+                else
+                    return "\"" + name + "\", " + (initValue.Trim().Length == 0 ? "\"\"" : initValue.Trim());
+            }
         }
         public string   GetKOSCode()
         {

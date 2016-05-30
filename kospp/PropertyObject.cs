@@ -52,16 +52,16 @@ namespace kospp
                 String Lex = "";
                 if (getFunction != null || setFunction != null)
                 {
-                    Lex += "\"" + name + "\",lexicon(\r\n\t";
+                    Lex += "set class[\"" + name + "\"]  to lexicon(\r\n";
                     if (getFunction != null)
-                        Lex += getFunction.LexiconEntry + "\r\n\t";
+                        Lex += getFunction.LexiconEntry;
                     if (setFunction != null)
                     {
                         if (getFunction != null)
-                            Lex += ",";
+                            Lex += ",\r\n";
                         Lex += setFunction.LexiconEntry + "\r\n";
                     }
-                    Lex += "\t)";
+                    Lex += ")";
                 }
                 return Lex;
             }

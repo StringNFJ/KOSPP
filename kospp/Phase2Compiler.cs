@@ -38,16 +38,29 @@ namespace kospp
         {
             SetToObject oSetToObject = null;
             string result = "";
+            bool doneSkip = false;
             //skip to start of user code.
-            //while(oWordEngine.NextWord != "code@!$")
-            //{
-            //   if(oWordEngine.Current == null)
-            //   {
-            //       errors.Add("User code marker not found.");
-            //       return null;
-            //   }
-            //   result += oWordEngine.Current;
-            //}
+            while (oWordEngine.NextLine())
+            {
+                while (oWordEngine.NextWord  != null)
+                {
+                    result += oWordEngine.Current;
+                    if (oWordEngine.Current == "code@!$")
+                    {
+                        doneSkip = true;
+                        break;
+                    }
+                }
+                result += "\r\n";
+                if (doneSkip)
+                    break;
+            }
+            if (oWordEngine.Current == null)
+            {
+                errors.Add("User code marker not found.");
+                return null;
+            }
+            
             while (oWordEngine.NextLine())
             {
                 
@@ -69,6 +82,7 @@ namespace kospp
                             }
                             else
                                 result += changeVariable(oWordEngine.Current, KOSObjects);
+                            
                         }
                         else
                             result += oWordEngine.Current;

@@ -65,7 +65,13 @@ namespace kospp
         }
         public string   LexiconEntry
         {
-            get { return "\"" + name + "\"," + internalName + "@" + ":bind(class)"; }
+            get 
+            { 
+                if(isPublic)
+                    return "set class[\"" + name + "\"] to " + internalName + "@" + ":bind(class)"; 
+                else
+                    return  "\"" + name + "\", " + internalName + "@" + ":bind(class)"; 
+            }
         }        
         public string   GetKOSCode()
         {
