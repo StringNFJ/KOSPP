@@ -51,7 +51,9 @@
     <Compile Include="ClassObject.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="FunctionObject.cs" />
-    <Compile Include="IBlockProcessor.cs" />
+    <Compile Include="IBlockProcessor.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="ICodeParser.cs" />
     <Compile Include="IKOSppObject.cs" />
     <Compile Include="Phase2Compiler.cs" />
@@ -60,7 +62,9 @@
     <Compile Include="PropertyObject.cs" />
     <Compile Include="SetToObject.cs" />
     <Compile Include="VariableObject.cs" />
-    <Compile Include="WordEngine.cs" />
+    <Compile Include="WordEngine.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
