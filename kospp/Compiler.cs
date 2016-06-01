@@ -40,20 +40,25 @@ namespace kospp
                     StreamWriter KOSFile = new StreamWriter(filename);
                     string result = "";
                     string Text = "";
-                     WordEngine oButifier = new WordEngine(KOSObj.GetKOSCode(), 
+                    WordEngine oButifier = new WordEngine(KOSObj.GetKOSCode(), 
                             new char[] { '{','}', },
                             new char[] { '"' });
-                     while (oButifier.NextLine())
-                    {
+                    bool firstWord = true;
+                    while (oButifier.NextLine())
+                    {                        
                         while (oButifier.NextWord != null)
                         {
-        
-                            for (int i = 0; i < (oButifier.Current.Equals("{") ? oButifier.BlockNumber - 1 : oButifier.BlockNumber); i++)
+                            if (firstWord)
+                            {
+                                for (int i = 0; i < (oButifier.Current.Equals("{") ? oButifier.BlockNumber - 1 : oButifier.BlockNumber); i++)
                                     Text += "\t";
+                                firstWord = false;
+                            }
                             Text += oButifier.Current;
         
                         }
-                            Text += "\r\n";
+                        Text += "\r\n";
+                        firstWord = true;
                     }
                     KOSFile.Write(Text);
                     KOSFile.Close();
