@@ -38,7 +38,24 @@ namespace kospp
                     string filename = ScriptDir + "\\" + KOSObj.Name + ".ks";
                     Console.WriteLine("Writing class " + KOSObj.Name + " to " + filename);                    
                     StreamWriter KOSFile = new StreamWriter(filename);
-                    KOSFile.Write(KOSObj.GetKOSCode());
+                    string result = "";
+                    string Text = "";
+                     WordEngine oButifier = new WordEngine(KOSObj.GetKOSCode(), 
+                            new char[] { '{','}', },
+                            new char[] { '"' });
+                     while (oButifier.NextLine())
+                    {
+                        while (oButifier.NextWord != null)
+                        {
+        
+                            for (int i = 0; i < (oButifier.Current.Equals("{") ? oButifier.BlockNumber - 1 : oButifier.BlockNumber); i++)
+                                    Text += "\t";
+                            Text += oButifier.Current;
+        
+                        }
+                            Text += "\r\n";
+                    }
+                    KOSFile.Write(Text);
                     KOSFile.Close();
                     Console.WriteLine("Write Complete.");
                 }
